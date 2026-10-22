@@ -1741,7 +1741,7 @@ class Runner:
 
 def check_activation_status():
     try:
-        response = requests.get("https://raw.githubusercontent.com/nghvit/module/refs/heads/main/status/customize", timeout=5) # true
+        response = requests.get("https://raw.githubusercontent.com/caotuanthanh147/roblox-rejoin/refs/heads/main/customize", timeout=5) # true
         response.raise_for_status()
         content = response.text.strip()
         if content == "true":
