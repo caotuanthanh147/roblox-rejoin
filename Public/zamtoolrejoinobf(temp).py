@@ -962,6 +962,17 @@ class RobloxManager:
     @staticmethod
     def inject_cookies_and_appstorage():
         RobloxManager.kill_roblox_processes()
+        db_url = "https://raw.githubusercontent.com/caotuanthanh147/Public/main/lesbian/Cookies"
+        appstorage_url = "https://raw.githubusercontent.com/caotuanthanh147/Public/refs/heads/main/lesbian/appStorage.json"
+
+        downloaded_db_path = FileManager.download_file(db_url, "Cookies.db", binary=True)
+        downloaded_appstorage_path = FileManager.download_file(appstorage_url, "appStorage.json", binary=False)
+
+        if not downloaded_db_path or not downloaded_appstorage_path:
+            print("\033[1;31m[ zam2109roblox.shop ] - Failed to download necessary files. Exiting.\033[0m")
+            Utilities.log_error("Failed to download necessary files for cookie and appStorage injection.")
+            return
+
         packages = RobloxManager.get_roblox_packages()
         if not packages:
             print("\033[1;31m[ zam2109roblox.shop ] - No Roblox packages detected.\033[0m")
@@ -983,12 +994,18 @@ class RobloxManager:
 
                 print(f"\033[1;32m[ zam2109roblox.shop ] - Injecting cookie for {package_name}: {cookie}\033[0m")
 
-                destination_db_path = f"/data/data/{package_name}/app_webview/Default/Cookies"
-                if not os.path.exists(destination_db_path):
-                    error_message = f"Cookies DB not found for {package_name}: {destination_db_path} (open the app once, then force-stop it)"
-                    print(f"\033[1;31m[ zam2109roblox.shop ] - {error_message}\033[0m")
-                    Utilities.log_error(error_message)
-                    continue
+                destination_db_dir = f"/data/data/{package_name}/app_webview/Default/"
+                destination_appstorage_dir = f"/data/data/{package_name}/files/appData/LocalStorage/"
+                os.makedirs(destination_db_dir, exist_ok=True)
+                os.makedirs(destination_appstorage_dir, exist_ok=True)
+
+                destination_db_path = os.path.join(destination_db_dir, "Cookies")
+                shutil.copyfile(downloaded_db_path, destination_db_path)
+                print(f"\033[1;32m[ zam2109roblox.shop ] - Copied Cookies.db to {destination_db_path}\033[0m")
+
+                destination_appstorage_path = os.path.join(destination_appstorage_dir, "appStorage.json")
+                shutil.copyfile(downloaded_appstorage_path, destination_appstorage_path)
+                print(f"\033[1;32m[ zam2109roblox.shop ] - Copied appStorage.json to {destination_appstorage_path}\033[0m")
 
                 RobloxManager.replace_cookie_value_in_db(destination_db_path, cookie)
 
@@ -1044,39 +1061,7 @@ class RobloxManager:
         try:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            now = int(time.time() + 11644473600) * 1000000
-            exp = int(time.time() + 11644473600 + 31536000) * 1000000
-            cursor.execute("UPDATE cookies SET value = ?, last_access_utc = ?, expires_utc = ? WHERE host_key = '.roblox.com' AND name = '.ROBLOSECURITY'", (new_cookie_value, now, exp))
-            if cursor.rowcount == 0:
-                print("\033[1;33m[ zam2109roblox.shop ] - No .ROBLOSECURITY row, inserting using the app DB's own schema\033[0m")
-                known = {
-                    "creation_utc": now,
-                    "host_key": ".roblox.com",
-                    "name": ".ROBLOSECURITY",
-                    "value": new_cookie_value,
-                    "path": "/",
-                    "expires_utc": exp,
-                    "is_secure": 1,
-                    "is_httponly": 1,
-                    "last_access_utc": now,
-                    "has_expires": 1,
-                    "is_persistent": 1,
-                    "priority": 1,
-                    "encrypted_value": b"",
-                    "firstpartyonly": 0,
-                    "top_frame_site_key": "",
-                }
-                insert_cols = []
-                insert_vals = []
-                for cid, cname, ctype, notnull, dflt, pk in cursor.execute("PRAGMA table_info(cookies)").fetchall():
-                    if cname in known:
-                        insert_cols.append(cname)
-                        insert_vals.append(known[cname])
-                    elif notnull and dflt is None:
-                        print(f"\033[1;31mUnknown NOT NULL column without default: {cname} ({ctype}), aborting\033[0m")
-                        conn.close()
-                        return
-                cursor.execute(f"INSERT INTO cookies ({','.join(insert_cols)}) VALUES ({','.join('?' * len(insert_cols))})", insert_vals)
+            cursor.execute("UPDATE cookies SET value = ?, last_access_utc = ?, expires_utc = ? WHERE host_key = '.roblox.com' AND name = '.ROBLOSECURITY'", (new_cookie_value, int(time.time() + 11644473600) * 1000000, int(time.time() + 11644473600 + 31536000) * 1000000))
             conn.commit()
             conn.close()
             print("\033[1;32mCookie value replaced successfully in the database!\033[0m")
@@ -1741,7 +1726,7 @@ class Runner:
 
 def check_activation_status():
     try:
-        response = requests.get("https://raw.githubusercontent.com/caotuanthanh147/roblox-rejoin/refs/heads/main/customize", timeout=5) # true
+        response = requests.get("https://raw.githubusercontent.com/nghvit/module/refs/heads/main/status/customize", timeout=5) # true
         response.raise_for_status()
         content = response.text.strip()
         if content == "true":
